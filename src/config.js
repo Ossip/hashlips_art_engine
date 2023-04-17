@@ -108,6 +108,8 @@ const preview_gif = {
 
 const DNA_DELIMITER = "-";
 
+const regenerateImages = true;  // generate images from _metadata.json
+
 module.exports = {
   format,
   baseUri,
@@ -127,5 +129,7 @@ module.exports = {
   solanaMetadata,
   gif,
   preview_gif,
+  regenerateImages,
+  traitRemap,
   DNA_DELIMITER,
 };

@@ -52,12 +52,14 @@ let {
   background,
   text,
   gif,
+  regenerateImages,
+  traitRemap,
   DNA_DELIMITER,
 } = config;
 
 let loadedImages = {};
 let layerConfigs = {};
-var metadataList = [];
+var metadataList = [], metadata = {};
 var attributesList = [];
 
 if (DNA_DELIMITER == undefined) {
@@ -391,6 +393,39 @@ const createDna = (_layers) => {
   return randNum;
 };
 
+const findDna = (_layers, meta) => {
+  let randNum = [];
+  let i;
+  _layers.forEach((layer) => {
+    let attr = meta.attributes.find(a => a.trait_type == layer.elements[0].layer)
+    if (!attr) return console.error("## layer not found", layer.elements[0].layer, meta)
+    let val = traitRemap[attr.value] || attr.value
+
+    let el = layer.elements.find(e => e.layer == attr.trait_type && e.name == val)
+    if (!el) {
+      console.log("##", meta.edition,
+          attr.trait_type, attr.value, val, ':', layer.elements.map(e => e.name).join(', '), meta)
+      console.error(attr.trait_type, attr.value, val, ':', layer.elements.map(e => e.name).join(', '))
+      return
+    }
+    i = el.id
+
+   console.log("tv", meta.edition, layer.id, attr.trait_type, val, el.path, el.id)
+
+
+    return randNum.push({
+      path: `${layer.elements[i].id}:${layer.elements[i].path}${
+          layer.bypassDNA ? "?bypassDNA=true" : ""
+      }`,
+      layer: layerConfigs[layer.elements[i].layer],
+      loadedImage: layer.elements[i].loadedImage,
+      trait: layer.elements[i].path,
+    });
+
+  });
+  return randNum;
+};
+
 const saveMetaDataSingleFile = (_editionCount) => {
   let metadata = metadataList.find((meta) => (meta.edition == null ? meta.custom_fields.edition : meta.edition) == _editionCount);
   debugLogs
@@ -432,6 +467,8 @@ const startCreating = () => {
       existingEditions.add(element.edition);
       dnaHashList.add(element.dna);
       metadataList.push(element);
+
+      metadata[element.edition] = element;
     });
   }
 
@@ -450,8 +487,8 @@ const startCreating = () => {
       i < layerconfiguration[Object.keys(layerconfiguration).find(k => k.toLowerCase() == "groweditionsizeto")] + startFrom;
       i++
     ) {
-      if (existingEditions.has(i)) {
-        console.log("Edition exists!");
+      if (existingEditions.has(i) && !regenerateImages) {
+        console.log("Edition exists!", i);
       } else {
         abstractedIndexes[i] = [layers, layerconfiguration[Object.keys(layerconfiguration).find(k => k.toLowerCase() == "extrametadata")]];
       }
@@ -478,9 +515,19 @@ const startCreating = () => {
     ? console.log("Editions left to create: ", abstractedIndexes)
     : null;
 
-   abstractedIndexes.every((layers, abstractedIndex) => {
+  abstractedIndexes.every((layers, abstractedIndex) => {
     for (;; failedCount++) {
+      if (regenerateImages) {
+        console.log('findDna', // JSON.stringify(layers[0],null,2),
+            abstractedIndex, metadata[abstractedIndex], '..')
+
+        newDna = findDna(layers[0], metadata[abstractedIndex])
+        break
+      }
+
       newDna = createDna(layers[0]);
+      console.log('newDna', JSON.stringify(layers[0],null,2),
+          abstractedIndex, ':', newDna)
 
       if (isDnaUnique(dnaHashList, newDna)) {
         break;
